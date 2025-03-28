@@ -1,0 +1,105 @@
+import PyKDL  # for kinematic and dynamic calculations of robots
+import numpy as np
+import rospy
+#class my robot arm
+class My_RobotArm:
+    def __init__(self, chain): # chain is the kinematic = how the robot's parts are connected).
+        """
+        Inizializza il braccio robotico dato un oggetto KDL Chain.
+        :param chain: Catena cinematica del robot
+        """
+        self.chain = chain
+        self.n_joints = chain.getNrOfJoints()  # Numero di giunti  ,  counts the number of joints and save this number 
+        self.fk_solver = PyKDL.ChainFkSolverPos_recursive(chain)  # Risolutore cinematica diretta  , creates a solver for Forward Kinematics 
+        self.ik_solver = PyKDL.ChainIkSolverPos_LMA(chain)  # Risolutore cinematica inversa , creates a solver for Inverse Kinematics 
+    
+    def forward_kinematics(self, joint_angles): #starts with an input:A list of angles for each joint
+
+
+        """
+        Calcola la cinematica diretta (posizione dell'effettore finale) dato un set di angoli dei giunti.
+        :param joint_angles: Lista o array di angoli dei giunti in radianti
+        :return: Lista di coordinate [x, y, z] della posizione dell'effettore finale
+        """
+        # Imposta gli angoli dei giunti , creates arry to store the joint angles
+        jnt_array = PyKDL.JntArray(self.n_joints)
+        for i in range(self.n_joints):
+            jnt_array[i] = joint_angles[i]
+        
+        # Calcola la cinematica diretta , calculates the robot hand’s position  based on joint angles
+        ee_frame = PyKDL.Frame()
+        if self.fk_solver.JntToCart(jnt_array, ee_frame) < 0:
+            rospy.logerr("Errore nella cinematica diretta")
+            return None
+        
+        # Estrai la posizione dell'effettore finale , xtracts the (x, y, z) position of the robot’s hand = Returns the final position
+        position = ee_frame.p
+        return [position.x(), position.y(), position.z()]
+    
+
+
+    # two inputs:target_pos: The desired position , target_rot (optional): The desired orientation
+    def inverse_kinematics(self, target_pos, target_rot=None):
+        """
+        Calcola la cinematica inversa per ottenere gli angoli dei giunti dati una posizione (x, y, z) e opzionalmente un orientamento.
+        :param target_pos: Posizione desiderata (x, y, z)
+        :param target_rot: (opzionale) Matrice di rotazione desiderata
+        :return: Lista degli angoli dei giunti (o None se non trovato)
+        """
+        # Definisci la configurazione iniziale dei giunti , creates a list of initial joint angles  
+        q_init = PyKDL.JntArray(self.n_joints)
+        for i in range(self.n_joints):
+            q_init[i] = 0.0  # Configurazione di riposo , rest position and sets to 0 radians 
+        
+        # Definisci la posizione finale desiderata , creates a frame for the end-effector , sets its position using target_pos
+        end_effector_frame = PyKDL.Frame()
+        end_effector_frame.p = PyKDL.Vector(*target_pos)
+
+        # Se fornito, aggiungi l'orientamento , orientation of end effector 
+
+        if target_rot:
+            if isinstance(target_rot, PyKDL.Rotation): # represent the orientation , it used directly = PyKDL
+                end_effector_frame.M = target_rot  #  M = matrix for rotation ee 
+            else:
+                # Quando target_rot è una lista di rotazione [roll, pitch, yaw] , the code converts it into a rotation matrix first then applied it 
+                roll, pitch, yaw = target_rot
+                rotation = PyKDL.Rotation.RPY(roll, pitch, yaw)
+                end_effector_frame.M = rotation
+
+        # Risoluzione cinematica inversa, create an arry of joint angles 
+        joint_result = PyKDL.JntArray(self.n_joints)
+        if self.ik_solver.CartToJnt(q_init, end_effector_frame, joint_result) >= 0: # solver find the solution 
+            return [joint_result[i] for i in range(self.n_joints)]
+        else:        
+            return None  # Nessuna soluzione trovata , solver can not find solution 
+
+##commento
+
+
+    def get_joint_positions(self, joint_angles, resolution=3):
+        """
+        Calcola la posizione di tutti i giunti e dei punti intermedi per rappresentare meglio la struttura del braccio.
+
+        :param joint_angles: Lista di angoli dei giunti
+        :param resolution: Numero di punti intermedi tra un giunto e l'altro
+        :return: Lista delle coordinate [x, y, z] di giunti e punti intermedi
+        """
+        jnt_array = PyKDL.JntArray(self.n_joints)   # space to store the angles of the joints, starts with a starting position of the robot , use forward kinematics 
+        for i in range(self.n_joints):             
+            jnt_array[i] = joint_angles[i]
+
+        trans = PyKDL.Frame.Identity()   #create an identity frame to calculate the position of each joint 
+
+        # Lista delle posizioni reali dei giunti ,  list of real position of each joint 
+        real_joint_positions = []
+
+        for i in range(self.chain.getNrOfSegments()):
+            segment = self.chain.getSegment(i)
+            joint = segment.getJoint()
+
+            if joint.getType() != getattr(PyKDL.Joint, "None"):
+                self.fk_solver.JntToCart(jnt_array, trans, i + 1)
+                real_joint_positions.append([trans.p.x(), trans.p.y(), trans.p.z()])
+
+        return real_joint_positions
+    
