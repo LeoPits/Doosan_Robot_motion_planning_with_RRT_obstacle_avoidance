@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/59e11b56-9a22-4244-8e8d-b79b389e9623
 - ubuntu 20.04 lts
 - ros noetic
 
-- 
+
 Launch the file
  ```
 roslaunch dsr_launcher single_robot_rviz.launch
