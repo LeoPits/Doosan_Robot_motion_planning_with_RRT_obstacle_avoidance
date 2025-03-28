@@ -39,7 +39,7 @@ def shutdown():
     print("shutdown time!")
     pub_stop.publish(stop_mode=STOP_TYPE_QUICK)
     return 0
-
+##message_robot_state
 def msgRobotState_cb(msg):
     msgRobotState_cb.count += 1
     if (0==(msgRobotState_cb.count % 100)): 
