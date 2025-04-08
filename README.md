@@ -21,8 +21,11 @@ To run the project, you will need the following:
 - **Matplotlib** - For visualizing the path planning and obstacles.
 - **OpenCV** - For processing sensor data and obstacle detection.
 - **Doosan SDK** (if applicable) - To interface with the Doosan robot hardware. https://github.com/doosan-robotics/doosan-robot
-
-
+NOTE: require Docker install for emulator sh. In src/doosan-robot/common/bin/DRCF folder
+ ```
+./run_dcfc.sh
+ ```
+to install the doosan emualtor on the device, which is necessary for controlling the robot
 
 
 
