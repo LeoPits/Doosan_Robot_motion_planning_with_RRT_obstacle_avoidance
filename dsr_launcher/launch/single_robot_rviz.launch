@@ -50,7 +50,7 @@
     <arg name="rviz"       value="$(arg rviz)"/>
     <arg name="remap"   value="$(arg remap)"/>
   </include>
-
+    <!-- Avvia robot_state_publisher -->
   <!-- View in RVIZ. -->
   <!-- <group if="$(arg rviz)">
     <node name="dmodel" pkg="dsr_launcher" type="dmodel.py"/>

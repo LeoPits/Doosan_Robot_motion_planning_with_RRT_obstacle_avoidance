@@ -11,6 +11,10 @@ from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 from sensor_msgs.msg import PointCloud
 from sensor_msgs.msg import ChannelFloat32
+import tf2_ros
+import tf2_geometry_msgs
+from urdf_parser_py.urdf import URDF
+from geometry_msgs.msg import PointStamped
 
 def create_marker(marker_id, position, color, scale=1.0, shape=Marker.SPHERE, text=None):
     """
@@ -154,7 +158,6 @@ def publish_obstacles(obstacle_list, marker_pub_obstacles):
     rospy.loginfo("🟦 Ostacoli pubblicati su RViz senza testo!")
 
 
-    
 
 class JointStateSubscriber:
     def __init__(self, doosan):
@@ -170,7 +173,7 @@ class JointStateSubscriber:
         """
         self.current_joint_angles = list(msg.position)
         self.publish_joint_markers()
-
+        #self.publish_visualization_markers()
     def publish_joint_markers(self):
         """
         Pubblica le posizioni cartesiane dei giunti come sfere in un MarkerArray per RViz.
@@ -179,32 +182,49 @@ class JointStateSubscriber:
             joint_positions = self.doosan.get_joint_positions(self.current_joint_angles)
             marker_array = MarkerArray()
 
-            for i, (x, y, z) in enumerate(joint_positions):
-                marker = Marker()
-                marker.header = Header()
-                marker.header.stamp = rospy.Time.now()
-                marker.header.frame_id = "base_0"  # Cambia con il frame corretto
+            for i, pos in enumerate(joint_positions):
+                joint_marker = self.create_sphere_marker(
+                    marker_id=i,
+                    ns="joint_spheres",
+                    position=pos,
+                    frame_id="base_0",
 
-                marker.ns = "joint_spheres"
-                marker.id = i
-                marker.type = Marker.SPHERE
-                marker.action = Marker.ADD
-
-                marker.pose.position.x = x
-                marker.pose.position.y = y
-                marker.pose.position.z = z
-
-                marker.scale.x = 0.15  # Raggio della sfera
-                marker.scale.y = 0.15
-                marker.scale.z = 0.15
-
-                marker.color.r = 1.0
-                marker.color.g = 0.0
-                marker.color.b = 0.0
-                marker.color.a = 0.2  # Opacità piena
-
-                marker.lifetime = rospy.Duration()
-
-                marker_array.markers.append(marker)
-
+                    )
+                joint_marker.header.stamp = rospy.Time.now() # Applica timestamp comune
+                marker_array.markers.append(joint_marker)
             self.marker_publisher.publish(marker_array)
+                    # Aggiungi la visualizzazione dei link
+
+
+
+ # --- CORREZIONE: Definisci come metodo statico e usa i parametri corretti ---
+    @staticmethod
+    def create_sphere_marker(marker_id, ns, position, frame_id, color=(1.0,0.0 , 0.0, 0.2), scale=0.2):
+        """
+        Crea un marker di tipo SFERA. (Definizione corretta)
+        """
+        marker = Marker()
+        marker.header.frame_id = frame_id
+        # marker.header.stamp = rospy.Time.now() # Meglio impostare il timestamp comune nell'array
+        marker.ns = ns  # Usa il parametro ns fornito
+        marker.id = marker_id # Usa il parametro marker_id
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+
+        marker.pose.position.x = position[0]
+        marker.pose.position.y = position[1]
+        marker.pose.position.z = position[2]
+        marker.pose.orientation.w = 1.0
+
+        marker.scale.x = scale
+        marker.scale.y = scale
+        marker.scale.z = scale
+
+        marker.color.r = color[0]
+        marker.color.g = color[1]
+        marker.color.b = color[2]
+        marker.color.a = color[3]
+
+        marker.lifetime = rospy.Duration() # Persistente
+        return marker
+

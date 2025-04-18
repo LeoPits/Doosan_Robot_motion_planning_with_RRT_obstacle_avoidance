@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
+# -*- coding: utf-8 -
 import rospy
 import os
 import threading, time
@@ -22,6 +21,11 @@ sys.path.append(str(pathlib.Path(__file__).parent.parent))
 from my_robot_arm import My_RobotArm
 from my_rrt_star import My_RRTStar
 from publisher_utilies import publish_end_effector_trajectory,publish_obstacles,JointStateSubscriber
+from STOMPOptimizer import StompOptimizer 
+
+
+
+
 
 # for single robot 
 ROBOT_ID     = "dsr01"
@@ -66,7 +70,6 @@ def convert_to_degrees(path):
 
 
 
-
 if __name__ == "__main__":
     
     rospy.init_node('rrt_motion_planning') #start ros processing 
@@ -79,7 +82,7 @@ if __name__ == "__main__":
     pub_stop = rospy.Publisher('/'+ROBOT_ID +ROBOT_MODEL+'/stop', RobotStop, queue_size=10) # way to send message for robot to stop it           
 
     # Carica la catena cinematcca dal file URDF
-    urdf_file = "/home/jntlbap/catkin_ws/src/doosan-robot/dsr_description/urdf/m0609.urdf"
+    urdf_file = "/home/leandro/catkin_ws/src/doosan-robot/dsr_description/urdf/m0609.urdf"
     chain = treeFromFile(urdf_file)[1].getChain("base_0", "link6") #load robot's arm structure from the URDF  
     doosan=My_RobotArm(chain)
     joint_state_subscriber=JointStateSubscriber(doosan)# listen to updates about the robot's joints
@@ -95,7 +98,7 @@ if __name__ == "__main__":
     #start_rot = [-math.pi/2, -math.pi/2, math.pi/2]  # Orientamento desiderato (roll, pitch, yaw)
 
     # defines the path to the robot's URDF 
-    urdf_file = "/home/jntlbap/catkin_ws/src/doosan-robot/dsr_description/urdf/m0609.urdf"
+    urdf_file = "/home/leandro/catkin_ws/src/doosan-robot/dsr_description/urdf/m0609.urdf"
     #extracts the robot's kinematic chain.
     chain = treeFromFile(urdf_file)[1].getChain("base_0", "link6")
 
@@ -131,6 +134,20 @@ if __name__ == "__main__":
     rospy.loginfo(f"joint cartesian: {doosan.get_joint_positions}") #the robot's current joint positions 
 
     path = rrt_star.planning(search_until_max_iter=False) 
+
+    stomp = StompOptimizer(
+        robot=doosan,
+        initial_path=path,
+        obstacle_list=obstacle_list,
+        num_iterations=100,
+        step_size=0.1,
+        noise_std_dev=0.05
+    )
+
+    optimized_path = stomp.optimize()
+
+
+    
     if path is None:
         print("Cannot find path.")
     else:
@@ -139,15 +156,19 @@ if __name__ == "__main__":
         rospy.loginfo(f"Percorso calcolato in radianti...")
         rospy.loginfo(f"numero di nodi trovati: {len(path)}")
 
+
+    rospy.loginfo(f"original pat: {path}")
+    rospy.loginfo(f"optimized_path: {optimized_path}")
+
     ee_positions = []
-    for joint_angles in path:  # Per ogni configurazione dei giunti trovata
+    for joint_angles in optimized_path:  # Per ogni configurazione dei giunti trovata
         cartesian_pos = doosan.forward_kinematics(joint_angles)  # Cinematica diretta
         if cartesian_pos is not None:
             ee_positions.append(cartesian_pos)
 
-    path_deg = convert_to_degrees(path)
+    path_deg = convert_to_degrees(optimized_path)
     rospy.loginfo("Percorso calcolato in gradi:")  # Stampa il percorso convertito # Calculated path in degrees
-    marker_pub_traj = rospy.Publisher("/ee_trajectory", MarkerArray, queue_size=len(path)) #Publishes the robot's end-effector path.
+    marker_pub_traj = rospy.Publisher("/ee_trajectory", MarkerArray, queue_size=len(optimized_path)) #Publishes the robot's end-effector path.
 
 
     marker_pub_obstacles = rospy.Publisher("/obs", Marker, queue_size=1) #Publishes the obstacles.
