@@ -60,59 +60,120 @@ def create_marker(marker_id, position, color, scale=1.0, shape=Marker.SPHERE, te
         marker.scale.y = 0.0
 
     return marker
-def publish_end_effector_trajectory(ee_positions, marker_pub):
-    # Creazione del MarkerArray
+
+
+
+
+def publish_end_effector_trajectory(ee_positions, marker_pub, color="red", ns_prefix="trajectory", frame_id="base_0"):
     marker_array = MarkerArray()
 
-    # Marker per la linea della traiettoria (LINE_STRIP)
+    # Scegli i colori in base al tipo
+    color_map = {
+        "red": (1.0, 0.0, 0.0),
+        "blue": (0.0, 0.0, 1.0),
+        "green": (0.0, 1.0, 0.0)
+    }
+    r, g, b = color_map.get(color, (1.0, 0.0, 0.0))  # default = rosso
+
+    # Linea della traiettoria
     marker_line = Marker()
-    marker_line.header.frame_id = "base_0"
+    marker_line.header.frame_id = frame_id
     marker_line.header.stamp = rospy.Time.now()
-    marker_line.ns = "trajectory"
+    marker_line.ns = f"{ns_prefix}_line"
     marker_line.id = 0
     marker_line.type = Marker.LINE_STRIP
     marker_line.action = Marker.ADD
-    marker_line.scale.x = 0.005  # Spessore della linea
+    marker_line.scale.x = 0.005
+    marker_line.color.r = r
+    marker_line.color.g = g
+    marker_line.color.b = b
+    marker_line.color.a = 1.0
 
-    marker_line.color.r = 1.0
-    marker_line.color.g = 0.0
-    marker_line.color.b = 0.0
-    marker_line.color.a = 1.0  # Opacità
-
-    # Marker per le sfere (SPHERE_LIST)
+    # Sfere sui punti
     marker_spheres = Marker()
-    marker_spheres.header.frame_id = "base_0"
+    marker_spheres.header.frame_id = frame_id
     marker_spheres.header.stamp = rospy.Time.now()
-    marker_spheres.ns = "trajectory_points"
+    marker_spheres.ns = f"{ns_prefix}_points"
     marker_spheres.id = 1
     marker_spheres.type = Marker.SPHERE_LIST
     marker_spheres.action = Marker.ADD
     marker_spheres.scale.x = 0.01
     marker_spheres.scale.y = 0.01
     marker_spheres.scale.z = 0.01
+    marker_spheres.color.r = r
+    marker_spheres.color.g = g
+    marker_spheres.color.b = b
+    marker_spheres.color.a = 1.0
 
-    marker_spheres.color.r = 0.0
-    marker_spheres.color.g = 0.0
-    marker_spheres.color.b = 1.0
-    marker_spheres.color.a = 1.0  # Opacità
-
-    # Per ogni configurazione dei giunti, calcoliamo la posizione dell'end-effector
     for ee_pos in ee_positions:
         if ee_pos is None:
             continue
-        point = Point()
-        point.x, point.y, point.z = ee_pos
+        point = Point(x=ee_pos[0], y=ee_pos[1], z=ee_pos[2])
         marker_line.points.append(point)
         marker_spheres.points.append(point)
 
-    # Aggiungi i marker al MarkerArray
     marker_array.markers.append(marker_line)
     marker_array.markers.append(marker_spheres)
-
-    # Pubblica il MarkerArray
     marker_pub.publish(marker_array)
 
-    rospy.loginfo("________ Traiettoria Pubblicata come MarkerArray ________")
+    rospy.loginfo(f"Traiettoria pubblicata: {ns_prefix}")
+
+
+
+
+# def publish_end_effector_trajectory(ee_positions, marker_pub):
+#     # Creazione del MarkerArray
+#     marker_array = MarkerArray()
+
+#     # Marker per la linea della traiettoria (LINE_STRIP)
+#     marker_line = Marker()
+#     marker_line.header.frame_id = "base_0"
+#     marker_line.header.stamp = rospy.Time.now()
+#     marker_line.ns = "trajectory"
+#     marker_line.id = 0
+#     marker_line.type = Marker.LINE_STRIP
+#     marker_line.action = Marker.ADD
+#     marker_line.scale.x = 0.005  # Spessore della linea
+
+#     marker_line.color.r = 1.0
+#     marker_line.color.g = 0.0
+#     marker_line.color.b = 0.0
+#     marker_line.color.a = 1.0  # Opacità
+
+#     # Marker per le sfere (SPHERE_LIST)
+#     marker_spheres = Marker()
+#     marker_spheres.header.frame_id = "base_0"
+#     marker_spheres.header.stamp = rospy.Time.now()
+#     marker_spheres.ns = "trajectory_points"
+#     marker_spheres.id = 1
+#     marker_spheres.type = Marker.SPHERE_LIST
+#     marker_spheres.action = Marker.ADD
+#     marker_spheres.scale.x = 0.01
+#     marker_spheres.scale.y = 0.01
+#     marker_spheres.scale.z = 0.01
+
+#     marker_spheres.color.r = 0.0
+#     marker_spheres.color.g = 0.0
+#     marker_spheres.color.b = 1.0
+#     marker_spheres.color.a = 1.0  # Opacità
+
+#     # Per ogni configurazione dei giunti, calcoliamo la posizione dell'end-effector
+#     for ee_pos in ee_positions:
+#         if ee_pos is None:
+#             continue
+#         point = Point()
+#         point.x, point.y, point.z = ee_pos
+#         marker_line.points.append(point)
+#         marker_spheres.points.append(point)
+
+#     # Aggiungi i marker al MarkerArray
+#     marker_array.markers.append(marker_line)
+#     marker_array.markers.append(marker_spheres)
+
+#     # Pubblica il MarkerArray
+#     marker_pub.publish(marker_array)
+
+#     rospy.loginfo("________ Traiettoria Pubblicata come MarkerArray ________")
 
 
 

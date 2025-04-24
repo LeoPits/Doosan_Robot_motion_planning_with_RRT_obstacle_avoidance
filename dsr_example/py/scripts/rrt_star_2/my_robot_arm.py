@@ -2,9 +2,13 @@ import PyKDL  # for kinematic and dynamic calculations of robots
 import numpy as np
 import rospy
 import math
-
+from PyKDL import ChainJntToJacSolver, JntArray, Chain, Jacobian
 #class my robot arm
 class My_RobotArm:
+
+
+
+
     def __init__(self, chain): # chain is the kinematic = how the robot's parts are connected).
         """
         Inizializza il braccio robotico dato un oggetto KDL Chain.
@@ -12,8 +16,8 @@ class My_RobotArm:
         """
         self.chain = chain
         self.n_joints = chain.getNrOfJoints()  # Numero di giunti  ,  counts the number of joints and save this number 
-        self.fk_solver = PyKDL.ChainFkSolverPos_recursive(chain)  # Risolutore cinematica diretta  , creates a solver for Forward Kinematics 
-        self.ik_solver = PyKDL.ChainIkSolverPos_LMA(chain)  # Risolutore cinematica inversa , creates a solver for Inverse Kinematics 
+        self.fk_solver = PyKDL.ChainFkSolverPos_recursive(chain)  # calcola la posizione finale (Forward Kinematics)
+        self.ik_solver = PyKDL.ChainIkSolverPos_LMA(chain)  # calcola gli angoli dei giunti necessari per raggiungere una certa posizione (Inverse Kinematics)
         self.joint_limits = [
             (-2 * math.pi, 2 * math.pi),   # J1: ±360°
             (-2 * math.pi, 2 * math.pi),   # J2: ±360°
@@ -22,9 +26,14 @@ class My_RobotArm:
             (-2 * math.pi, 2 * math.pi),   # J5: ±360°
             (-2 * math.pi, 2 * math.pi)    # J6: ±360°
         ]
+
+
+
+
+
+
+
     def forward_kinematics(self, joint_angles): #starts with an input:A list of angles for each joint
-
-
         """
         Calcola la cinematica diretta (posizione dell'effettore finale) dato un set di angoli dei giunti.
         :param joint_angles: Lista o array di angoli dei giunti in radianti
@@ -35,7 +44,7 @@ class My_RobotArm:
         for i in range(self.n_joints):
             jnt_array[i] = joint_angles[i]
         
-        # Calcola la cinematica diretta , calculates the robot hand’s position  based on joint angles
+        # Calcola la cinematica diretta , calculates the robot ee position  based on joint angles
         ee_frame = PyKDL.Frame()
         if self.fk_solver.JntToCart(jnt_array, ee_frame) < 0:
             rospy.logerr("Errore nella cinematica diretta")
@@ -44,6 +53,8 @@ class My_RobotArm:
         # Estrai la posizione dell'effettore finale , xtracts the (x, y, z) position of the robot’s hand = Returns the final position
         position = ee_frame.p
         return [position.x(), position.y(), position.z()]
+    
+
     
     def check_joint_limits(self, joint_angles):
         rospy.loginfo("Controllo dei limiti articolari")
@@ -65,13 +76,12 @@ class My_RobotArm:
         q_init = PyKDL.JntArray(self.n_joints)
         for i in range(self.n_joints):
             q_init[i] = 0.0  # Configurazione di riposo , rest position and sets to 0 radians 
-        
+
         # Definisci la posizione finale desiderata , creates a frame for the end-effector , sets its position using target_pos
         end_effector_frame = PyKDL.Frame()
         end_effector_frame.p = PyKDL.Vector(*target_pos)
-
+        
         # Se fornito, aggiungi l'orientamento , orientation of end effector 
-
         if target_rot:
             if isinstance(target_rot, PyKDL.Rotation): # represent the orientation , it used directly = PyKDL
                 end_effector_frame.M = target_rot  #  M = matrix for rotation ee 
@@ -88,7 +98,15 @@ class My_RobotArm:
         else:        
             return None  # Nessuna soluzione trovata , solver can not find solution 
 
-##commento
+
+
+
+
+
+
+
+
+
 
 
     def get_joint_positions(self, joint_angles, resolution=3):
@@ -117,7 +135,14 @@ class My_RobotArm:
                 real_joint_positions.append([trans.p.x(), trans.p.y(), trans.p.z()])
 
         return real_joint_positions
-    
+
+
+
+
+
+
+
+
     
     def get_joint_angles_from_pose(self, pose,orientation):
         """
@@ -142,6 +167,9 @@ class My_RobotArm:
 
         
         
+
+
+
 
 
       # Nuova funzione per punti interpolati
@@ -192,3 +220,38 @@ class My_RobotArm:
         # Possiamo rimuovere duplicati se necessario, ma per la visualizzazione
         # con marker sovrapposti potrebbe non essere un grosso problema.
 
+
+    def get_jacobian(self, joint_angles, link_index):
+        """
+        Calcola il Jacobiano per il link indicato, usando una sottocatena manuale.
+        """
+        if isinstance(joint_angles, list):
+            joint_angles = np.array(joint_angles)
+
+        q_kdl = JntArray(len(joint_angles))
+        for i in range(len(joint_angles)):
+            q_kdl[i] = joint_angles[i]
+
+        # Costruisci manualmente la sottocatena
+        sub_chain = Chain()
+        for i in range(link_index + 1):
+            sub_chain.addSegment(self.chain.getSegment(i))
+
+        # Crea solver per la sottocatena
+        solver = ChainJntToJacSolver(sub_chain)
+
+        # Inizializza oggetto Jacobian
+        jacobian_kdl = Jacobian(sub_chain.getNrOfJoints())
+
+        # Calcolo corretto del Jacobiano
+        solver.JntToJac(q_kdl, jacobian_kdl)
+
+        # Conversione in numpy array
+        rows = jacobian_kdl.rows()
+        cols = jacobian_kdl.columns()
+        jacobian = np.zeros((rows, cols))
+        for i in range(rows):
+            for j in range(cols):
+                jacobian[i, j] = jacobian_kdl[i, j]
+
+        return jacobian[0:3, :]  # Solo componente lineare (x, y, z)

@@ -21,8 +21,8 @@ sys.path.append(str(pathlib.Path(__file__).parent.parent))
 from my_robot_arm import My_RobotArm
 from my_rrt_star import My_RRTStar
 from publisher_utilies import publish_end_effector_trajectory,publish_obstacles,JointStateSubscriber
-from STOMPOptimizer import StompOptimizer 
-
+from STOMP_Optimizer import StompOptimizer 
+from CHOMP_Optimozer import ChompOptimizer
 
 
 
@@ -78,8 +78,11 @@ if __name__ == "__main__":
     t1 = threading.Thread(target=thread_subscriber) #create new background about current state
     t1.daemon = True 
     t1.start()   
-
     pub_stop = rospy.Publisher('/'+ROBOT_ID +ROBOT_MODEL+'/stop', RobotStop, queue_size=10) # way to send message for robot to stop it           
+
+
+
+
 
     # Carica la catena cinematcca dal file URDF
     urdf_file = "/home/leandro/catkin_ws/src/doosan-robot/dsr_description/urdf/m0609.urdf"
@@ -92,18 +95,15 @@ if __name__ == "__main__":
     #goal position for the robot's end effector
     goal_cartesian = [0.4, 0.4, 0.6]  # [x, y, z]
     #goal_rot = [math.pi/2, math.pi/2, math.pi/2]  # Orientamento desiderato (roll, pitch, yaw)
-
     #starting position of the robot’s end effector
     start_cartesian = [-0.4, 0.4, 0.6]
     #start_rot = [-math.pi/2, -math.pi/2, math.pi/2]  # Orientamento desiderato (roll, pitch, yaw)
-
     # defines the path to the robot's URDF 
     urdf_file = "/home/leandro/catkin_ws/src/doosan-robot/dsr_description/urdf/m0609.urdf"
     #extracts the robot's kinematic chain.
     chain = treeFromFile(urdf_file)[1].getChain("base_0", "link6")
 
-        # Converti in spazio dei giunti
-
+    #Converti in spazio dei giunti
     start_joint_space =doosan.inverse_kinematics(start_cartesian)
     goal_joint_space =doosan.inverse_kinematics(goal_cartesian)
 
@@ -143,11 +143,8 @@ if __name__ == "__main__":
         step_size=0.1,
         noise_std_dev=0.05
     )
-
     optimized_path = stomp.optimize()
 
-
-    
     if path is None:
         print("Cannot find path.")
     else:
@@ -157,28 +154,34 @@ if __name__ == "__main__":
         rospy.loginfo(f"numero di nodi trovati: {len(path)}")
 
 
-    rospy.loginfo(f"original pat: {path}")
+    rospy.loginfo(f"original path: {path}")
+
+    cart_path_orginal= []
+    for joint_angles in path:  # Per ogni configurazione dei giunti trovata
+        cartesian_pos = doosan.forward_kinematics(joint_angles)  # Cinematica diretta
+        if cartesian_pos is not None:
+            cart_path_orginal.append(cartesian_pos)
+
     rospy.loginfo(f"optimized_path: {optimized_path}")
 
-    ee_positions = []
+    cart_path = []
     for joint_angles in optimized_path:  # Per ogni configurazione dei giunti trovata
         cartesian_pos = doosan.forward_kinematics(joint_angles)  # Cinematica diretta
         if cartesian_pos is not None:
-            ee_positions.append(cartesian_pos)
-
-    path_deg = convert_to_degrees(optimized_path)
+            cart_path.append(cartesian_pos)
     rospy.loginfo("Percorso calcolato in gradi:")  # Stampa il percorso convertito # Calculated path in degrees
-    marker_pub_traj = rospy.Publisher("/ee_trajectory", MarkerArray, queue_size=len(optimized_path)) #Publishes the robot's end-effector path.
-
-
+    marker_pub_traj = rospy.Publisher("/ee_trajectory", MarkerArray, queue_size=1,latch=True) #Publishes the robot's end-effector path.
+    marker_pub_traj_original = rospy.Publisher("/ee_trajectory_original", MarkerArray, queue_size=2,latch=True) #Publishes the robot's end-effector originalpath.
     marker_pub_obstacles = rospy.Publisher("/obs", Marker, queue_size=1) #Publishes the obstacles.
 
-    publish_end_effector_trajectory(ee_positions, marker_pub_traj)
-     #Send the robot's planned movement path to be visualized in RViz
 
+    publish_end_effector_trajectory(cart_path, marker_pub_traj, color="red", ns_prefix="optimized_traj")
+    publish_end_effector_trajectory(cart_path_orginal, marker_pub_traj_original, color="blue", ns_prefix="original_traj")
+
+    path_deg = convert_to_degrees(optimized_path)
 
     while not rospy.is_shutdown(): # Keep running the loop until ROS shuts down
-        publish_end_effector_trajectory(ee_positions, marker_pub_traj)
+        publish_end_effector_trajectory(cart_path, marker_pub_traj)
         publish_obstacles(obstacle_list, marker_pub_obstacles)
 
         if path_deg:# Checks if path_deg is not empty
