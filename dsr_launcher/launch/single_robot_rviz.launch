@@ -55,4 +55,8 @@
   <!-- <group if="$(arg rviz)">
     <node name="dmodel" pkg="dsr_launcher" type="dmodel.py"/>
   </group> -->
+
+
+
+  
 </launch>

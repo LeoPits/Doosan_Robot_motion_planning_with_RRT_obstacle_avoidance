@@ -22,7 +22,6 @@ from my_robot_arm import My_RobotArm
 from my_rrt_star import My_RRTStar
 from publisher_utilies import publish_end_effector_trajectory,publish_obstacles,JointStateSubscriber
 from STOMP_Optimizer import StompOptimizer 
-from CHOMP_Optimozer import ChompOptimizer
 
 
 
@@ -79,13 +78,10 @@ if __name__ == "__main__":
     t1.daemon = True 
     t1.start()   
     pub_stop = rospy.Publisher('/'+ROBOT_ID +ROBOT_MODEL+'/stop', RobotStop, queue_size=10) # way to send message for robot to stop it           
-
-
-
-
-
     # Carica la catena cinematcca dal file URDF
     urdf_file = "/home/leandro/catkin_ws/src/doosan-robot/dsr_description/urdf/m0609.urdf"
+
+    
     chain = treeFromFile(urdf_file)[1].getChain("base_0", "link6") #load robot's arm structure from the URDF  
     doosan=My_RobotArm(chain)
     joint_state_subscriber=JointStateSubscriber(doosan)# listen to updates about the robot's joints
