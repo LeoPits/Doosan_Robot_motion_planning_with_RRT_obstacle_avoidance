@@ -8,8 +8,9 @@ The Doosan robot is equipped with sensors to detect obstacles in its environment
 
 ### Key Features
 - **RRT* Algorithm**: A variation of the RRT algorithm that optimizes the path by continuously improving it, ensuring a more efficient solution compared to standard RRT.
-- **Obstacle Avoidance**: The robot detects obstacles in real-time and adjusts its path accordingly, ensuring smooth navigation through the environment.
-- **Real-time Simulation**: The system updates the robot’s path dynamically based on the current state of the environment.
+- *Obstacle Avoidance*: The robot know enviroment and the  obstacles  and adjusts its path accordingly 
+- **STOMP (Stochastic Trajectory Optimization for Motion Planning)* optimizer is implemented to guarantee smooth navigation through the environment.
+
 
 ## Requirements
 
@@ -17,9 +18,6 @@ To run the project, you will need the following:
 
 - **Python 3.x**
 - **ROS (Robot Operating System)** - For controlling the Doosan robot and simulating the movement.
-- **NumPy** - For mathematical calculations.
-- **Matplotlib** - For visualizing the path planning and obstacles.
-- **OpenCV** - For processing sensor data and obstacle detection.
 - **Doosan SDK** (if applicable) - To interface with the Doosan robot hardware. https://github.com/doosan-robotics/doosan-robot
 NOTE: require Docker install for emulator sh. In src/doosan-robot/common/bin/DRCF folder
  ```
@@ -41,13 +39,13 @@ https://github.com/user-attachments/assets/59e11b56-9a22-4244-8e8d-b79b389e9623
 - ros noetic
 
 
-Launch the file
- ```
+Launch the simulation with RViz: 
+```
 roslaunch dsr_launcher single_robot_rviz.launch
  ```
 
-For moving the robot initialize the controller node
+ Initialize the controller node to move the robot
  ```
  rosrun dsr_example_py __main.py
 ```
-
+⚙️ Note: The start position, target position, obstacles and other parameters  are defined directly in the "__main.py" script.
